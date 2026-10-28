@@ -1,6 +1,6 @@
 import datetime
 from typing import Optional, List
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 # User Schemas
 class UserRegister(BaseModel):
@@ -8,12 +8,14 @@ class UserRegister(BaseModel):
     password: str
     role: str = Field(..., pattern="^(donor|receiver|admin)$")
     org_name: str
+    username: Optional[str] = None
     org_type: Optional[str] = "General"
     phone: Optional[str] = None
     address: str
     latitude: float
     longitude: float
     default_radius_km: Optional[float] = 10.0
+    receiving_hours: Optional[str] = "08:00 AM - 08:00 PM"
     capacity_meals: Optional[float] = 150.0
     has_cold_storage: Optional[bool] = False
 
@@ -23,6 +25,7 @@ class UserLogin(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
+    username: Optional[str] = None
     email: str
     role: str
     org_name: str
@@ -32,6 +35,7 @@ class UserResponse(BaseModel):
     latitude: float
     longitude: float
     default_radius_km: Optional[float]
+    receiving_hours: Optional[str] = None
     capacity_meals: Optional[float]
     has_cold_storage: Optional[bool]
     created_at: datetime.datetime
@@ -79,13 +83,40 @@ class ListingResponse(BaseModel):
     longitude: float
     pickup_radius_km: float
     status: str
+    tracking_stage: Optional[str] = "Ready for Pickup"
     claimed_by_id: Optional[int] = None
     claimed_by_name: Optional[str] = None
+    claimed_by_address: Optional[str] = None
+    claimed_by_phone: Optional[str] = None
+    claimed_by_lat: Optional[float] = None
+    claimed_by_lng: Optional[float] = None
     claimed_at: Optional[datetime.datetime] = None
     collected_at: Optional[datetime.datetime] = None
     verified_at: Optional[datetime.datetime] = None
     notes: Optional[str] = None
     openfoodfacts_code: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+# Tracking & Message Schemas
+class TrackingUpdateRequest(BaseModel):
+    tracking_stage: str  # 'Ready for Pickup', 'Driver Dispatched', 'In Transit', 'Delivered'
+
+class MessageCreate(BaseModel):
+    listing_id: int
+    message_text: str
+
+class MessageResponse(BaseModel):
+    id: int
+    listing_id: int
+    sender_id: int
+    recipient_id: int
+    sender_name: str
+    recipient_name: str
+    message_text: str
+    timestamp: datetime.datetime
+    is_read: bool
 
     class Config:
         from_attributes = True

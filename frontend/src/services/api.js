@@ -57,6 +57,12 @@ export const api = {
     return res.json();
   },
 
+  async getListingById(id) {
+    const res = await fetch(`${API_BASE}/api/listings/${id}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch listing');
+    return res.json();
+  },
+
   async createListing(listingData) {
     const res = await fetch(`${API_BASE}/api/listings`, {
       method: 'POST',
@@ -82,16 +88,30 @@ export const api = {
     return res.json();
   },
 
-  async markCollected(listingId) {
-    const res = await fetch(`${API_BASE}/api/listings/${listingId}/collect`, {
+  async updateTracking(listingId, trackingStage) {
+    const res = await fetch(`${API_BASE}/api/listings/${listingId}/tracking`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ tracking_stage: trackingStage }),
+    });
+    if (!res.ok) throw new Error('Failed to update tracking');
+    return res.json();
+  },
+
+  async confirmDelivery(listingId) {
+    const res = await fetch(`${API_BASE}/api/listings/${listingId}/confirm-delivery`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: 'Collection update failed' }));
-      throw new Error(err.detail || 'Failed to mark collected');
+      const err = await res.json().catch(() => ({ detail: 'Delivery confirmation failed' }));
+      throw new Error(err.detail || 'Failed to confirm delivery');
     }
     return res.json();
+  },
+
+  async markCollected(listingId) {
+    return this.confirmDelivery(listingId);
   },
 
   async verifyCollection(listingId) {
@@ -103,6 +123,22 @@ export const api = {
       const err = await res.json().catch(() => ({ detail: 'Verification failed' }));
       throw new Error(err.detail || 'Failed to verify collection');
     }
+    return res.json();
+  },
+
+  async getMessages(listingId) {
+    const res = await fetch(`${API_BASE}/api/listings/${listingId}/messages`, { headers: getAuthHeaders() });
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  async sendMessage(listingId, messageText) {
+    const res = await fetch(`${API_BASE}/api/listings/${listingId}/messages`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ listing_id: listingId, message_text: messageText }),
+    });
+    if (!res.ok) throw new Error('Failed to send message');
     return res.json();
   },
 

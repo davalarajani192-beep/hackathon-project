@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Listing, User, AuditLog
-from app.schemas import ListingCreate, ListingResponse
+from app.models import Listing, User, AuditLog, Message
+from app.schemas import ListingCreate, ListingResponse, TrackingUpdateRequest, MessageCreate, MessageResponse
 from app.auth import get_current_user, require_donor, require_receiver, require_admin
 from app.scheduler import check_and_expire_listings
 
@@ -33,8 +33,13 @@ def serialize_listing(item: Listing) -> ListingResponse:
         longitude=item.longitude,
         pickup_radius_km=item.pickup_radius_km,
         status=item.status,
+        tracking_stage=item.tracking_stage or "Ready for Pickup",
         claimed_by_id=item.claimed_by_id,
         claimed_by_name=claimed.org_name if claimed else None,
+        claimed_by_address=claimed.address if claimed else None,
+        claimed_by_phone=claimed.phone if claimed else None,
+        claimed_by_lat=claimed.latitude if claimed else None,
+        claimed_by_lng=claimed.longitude if claimed else None,
         claimed_at=item.claimed_at,
         collected_at=item.collected_at,
         verified_at=item.verified_at,
@@ -79,11 +84,10 @@ def create_listing(
     db: Session = Depends(get_db)
 ):
     now = datetime.datetime.utcnow()
-    # Check expiry time is in future
     if payload.expiry_time <= now:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Expiry time must be in the future."
+            detail="Expiry date and time must be in the future."
         )
         
     listing = Listing(
@@ -101,6 +105,7 @@ def create_listing(
         longitude=payload.longitude,
         pickup_radius_km=payload.pickup_radius_km,
         status="Listed",
+        tracking_stage="Ready for Pickup",
         notes=payload.notes,
         openfoodfacts_code=payload.openfoodfacts_code
     )
@@ -115,7 +120,7 @@ def create_listing(
         user_role=current_user.role,
         user_name=current_user.org_name,
         action="CREATED",
-        details=f"Listed surplus: {listing.quantity} {listing.unit} of '{listing.title}', radius {listing.pickup_radius_km}km, storage {listing.storage_type}"
+        details=f"Listed surplus: {listing.quantity} {listing.unit} of '{listing.title}', expiry at {listing.expiry_time.strftime('%Y-%m-%d %H:%M')}, radius {listing.pickup_radius_km}km"
     )
     db.add(audit)
     db.commit()
@@ -155,8 +160,20 @@ def accept_listing(
         )
         
     item.status = "Accepted"
+    item.tracking_stage = "Driver Dispatched"
     item.claimed_by_id = current_user.id
     item.claimed_at = now
+    
+    # Send automated message from Receiver to Donor
+    msg = Message(
+        listing_id=item.id,
+        sender_id=current_user.id,
+        recipient_id=item.donor_id,
+        sender_name=current_user.org_name,
+        recipient_name=item.donor.org_name if item.donor else "Donor",
+        message_text=f"Claim Notification: {current_user.org_name} has accepted your surplus donation of '{item.title}' ({item.quantity} {item.unit}). Transport driver is being dispatched!"
+    )
+    db.add(msg)
     
     # Audit log
     audit = AuditLog(
@@ -173,31 +190,62 @@ def accept_listing(
     
     return serialize_listing(item)
 
-@router.post("/{listing_id}/collect", response_model=ListingResponse)
-def mark_collected(
+@router.post("/{listing_id}/tracking", response_model=ListingResponse)
+def update_tracking_stage(
     listing_id: int,
-    current_user: User = Depends(require_receiver),
+    req: TrackingUpdateRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     item = db.query(Listing).filter(Listing.id == listing_id).first()
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
         
-    if item.status != "Accepted":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot mark collected from status '{item.status}'. Must be 'Accepted'."
-        )
-        
-    if current_user.role != "admin" and item.claimed_by_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the receiver who claimed this listing can mark it collected."
-        )
+    item.tracking_stage = req.tracking_stage
+    
+    # If set to in transit or delivered, update status if appropriate
+    if req.tracking_stage == "In Transit" and item.status == "Accepted":
+        item.status = "Accepted"
+    elif req.tracking_stage == "Delivered" and item.status in ["Accepted", "Collected"]:
+        item.status = "Collected"
+        if not item.collected_at:
+            item.collected_at = datetime.datetime.utcnow()
+            
+    db.commit()
+    db.refresh(item)
+    return serialize_listing(item)
+
+@router.post("/{listing_id}/confirm-delivery", response_model=ListingResponse)
+def confirm_food_received(
+    listing_id: int,
+    current_user: User = Depends(require_receiver),
+    db: Session = Depends(get_db)
+):
+    """
+    Receiver marks food as received:
+    1. Sets tracking to 'Delivered'
+    2. Sets status to 'Collected'
+    3. Sends high-priority confirmation message to the donor that food was received!
+    """
+    item = db.query(Listing).filter(Listing.id == listing_id).first()
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
         
     now = datetime.datetime.utcnow()
     item.status = "Collected"
+    item.tracking_stage = "Delivered"
     item.collected_at = now
+    
+    # Automated message to donor confirming receipt
+    msg = Message(
+        listing_id=item.id,
+        sender_id=current_user.id,
+        recipient_id=item.donor_id,
+        sender_name=current_user.org_name,
+        recipient_name=item.donor.org_name if item.donor else "Commercial Donor",
+        message_text=f"✅ FOOD RECEIVED CONFIRMATION: {current_user.org_name} has safely received and inspected {item.quantity} {item.unit} of '{item.title}'. The meals will now be distributed tonight. Thank you for your kindness!"
+    )
+    db.add(msg)
     
     # Audit log
     audit = AuditLog(
@@ -206,13 +254,20 @@ def mark_collected(
         user_role=current_user.role,
         user_name=current_user.org_name,
         action="COLLECTED",
-        details=f"Receiver '{current_user.org_name}' marked food collected at donor facility. Awaiting donor verification."
+        details=f"Receiver '{current_user.org_name}' confirmed receipt of food surplus from donor '{item.donor.org_name if item.donor else 'Donor'}'. Notification sent to donor."
     )
     db.add(audit)
     db.commit()
     db.refresh(item)
-    
     return serialize_listing(item)
+
+@router.post("/{listing_id}/collect", response_model=ListingResponse)
+def mark_collected(
+    listing_id: int,
+    current_user: User = Depends(require_receiver),
+    db: Session = Depends(get_db)
+):
+    return confirm_food_received(listing_id, current_user, db)
 
 @router.post("/{listing_id}/verify", response_model=ListingResponse)
 def verify_collection(
@@ -224,24 +279,23 @@ def verify_collection(
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
         
-    if item.status != "Collected":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot verify collection from status '{item.status}'. Must be 'Collected' first."
-        )
-        
-    if current_user.role != "admin" and item.donor_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only the donor who posted this listing can confirm verification."
-        )
-        
     now = datetime.datetime.utcnow()
     item.status = "Verified"
+    item.tracking_stage = "Delivered & Verified"
     item.verified_at = now
     
-    # Audit log
+    # Confirmation message
     claimed_name = item.claimed_by.org_name if item.claimed_by else "Receiver"
+    msg = Message(
+        listing_id=item.id,
+        sender_id=current_user.id,
+        recipient_id=item.claimed_by_id or 0,
+        sender_name=current_user.org_name,
+        recipient_name=claimed_name,
+        message_text=f"🤝 HANDOVER VERIFIED: {current_user.org_name} confirmed the verified mutual handover of {item.quantity} {item.unit} of '{item.title}'. Impact logged!"
+    )
+    db.add(msg)
+    
     audit = AuditLog(
         listing_id=item.id,
         user_id=current_user.id,
@@ -253,8 +307,40 @@ def verify_collection(
     db.add(audit)
     db.commit()
     db.refresh(item)
-    
     return serialize_listing(item)
+
+@router.get("/{listing_id}/messages", response_model=List[MessageResponse])
+def get_listing_messages(listing_id: int, db: Session = Depends(get_db)):
+    msgs = db.query(Message).filter(Message.listing_id == listing_id).order_by(Message.timestamp.asc()).all()
+    return msgs
+
+@router.post("/{listing_id}/messages", response_model=MessageResponse)
+def post_listing_message(
+    listing_id: int,
+    msg_data: MessageCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    item = db.query(Listing).filter(Listing.id == listing_id).first()
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Listing not found")
+        
+    recipient_id = item.claimed_by_id if current_user.id == item.donor_id else item.donor_id
+    recipient_user = db.query(User).filter(User.id == recipient_id).first()
+    recipient_name = recipient_user.org_name if recipient_user else "User"
+    
+    msg = Message(
+        listing_id=item.id,
+        sender_id=current_user.id,
+        recipient_id=recipient_id or 0,
+        sender_name=current_user.org_name,
+        recipient_name=recipient_name,
+        message_text=msg_data.message_text
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return msg
 
 @router.post("/check-expiry")
 def trigger_expiry_check(current_user: User = Depends(get_current_user)):

@@ -5,31 +5,41 @@ const AuthContext = createContext(null);
 
 export const DEMO_ACCOUNTS = {
   donor: {
+    name: 'Grand Horizon Banquet & Catering',
+    org_name: 'Grand Horizon Banquet & Catering',
+    username: 'grand_canteen',
     email: 'donor@canteen.org',
     password: 'donor123',
+    phone: '+91 98450 12345',
     role: 'donor',
-    org_name: 'Grand Horizon Banquet & Catering',
     address: '14 Raj Bhavan Road, Somajiguda, Hyderabad',
     latitude: 17.4239,
     longitude: 78.4611,
     default_radius_km: 12.0
   },
   receiver: {
+    name: 'City Hope Food Bank & Distribution Hub',
+    org_name: 'City Hope Food Bank & Distribution Hub',
+    username: 'hope_foodbank',
     email: 'receiver@foodbank.org',
     password: 'receiver123',
+    phone: '+91 98451 11223',
     role: 'receiver',
-    org_name: 'City Hope Food Bank & Distribution Hub',
     address: 'Greenlands Road, Begumpet, Hyderabad',
     latitude: 17.4385,
     longitude: 78.4554,
+    receiving_hours: '07:00 AM - 10:00 PM',
     capacity_meals: 300.0,
     has_cold_storage: true
   },
   admin: {
+    name: 'Decoders EASY Admin Team',
+    org_name: 'Decoders EASY Admin Team',
+    username: 'admin_decoders',
     email: 'admin@easyrescue.org',
     password: 'admin123',
+    phone: '+91 98452 00000',
     role: 'admin',
-    org_name: 'Decoders EASY Admin Team',
     address: 'Decoders Command Center, Hyderabad',
     latitude: 17.4300,
     longitude: 78.4500
@@ -68,7 +78,6 @@ export function AuthProvider({ children }) {
       setUser(data.user);
       return data.user;
     } catch (err) {
-      // In case backend is not actively running during static demo preview, mock user seamlessly
       const foundDemo = Object.values(DEMO_ACCOUNTS).find(a => a.email === email);
       if (foundDemo && password.includes('123')) {
         const mockUser = {

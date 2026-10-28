@@ -27,6 +27,65 @@
 
 ---
 
+## 📁 Project Structure
+```
+hackathon-project/
+├── backend/                    # FastAPI backend
+│   ├── app/
+│   │   ├── routers/            # API route handlers
+│   │   │   ├── admin_router.py
+│   │   │   ├── auth_router.py
+│   │   │   ├── listings_router.py
+│   │   │   ├── matching_router.py
+│   │   │   └── openfoodfacts_router.py
+│   │   ├── auth.py             # JWT authentication
+│   │   ├── config.py           # App settings
+│   │   ├── database.py         # SQLAlchemy engine
+│   │   ├── geo_utils.py        # Geospatial utilities
+│   │   ├── main.py             # FastAPI entry point
+│   │   ├── matching.py         # Smart matching pipeline
+│   │   ├── models.py           # SQLAlchemy models
+│   │   ├── scheduler.py        # Background expiry scheduler
+│   │   ├── schemas.py          # Pydantic schemas
+│   │   └── seed_data.py        # Demo data seeder
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/                   # React + Vite frontend
+│   ├── src/
+│   │   ├── components/         # Reusable UI components
+│   │   │   ├── CountdownTimer.jsx
+│   │   │   ├── Footer.jsx
+│   │   │   ├── MapView.jsx
+│   │   │   ├── Navbar.jsx
+│   │   │   └── StatusStepper.jsx
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx
+│   │   ├── pages/              # Route pages
+│   │   │   ├── AdminDashboard.jsx
+│   │   │   ├── DonorDashboard.jsx
+│   │   │   ├── LandingPage.jsx
+│   │   │   ├── LiveTrackingPage.jsx
+│   │   │   ├── LoginPage.jsx
+│   │   │   ├── ReceiverDashboard.jsx
+│   │   │   └── RegisterPage.jsx
+│   │   ├── services/
+│   │   │   └── api.js
+│   │   ├── App.jsx
+│   │   ├── index.css
+│   │   └── main.jsx
+│   ├── Dockerfile
+│   ├── index.html
+│   ├── nginx.conf
+│   ├── package.json
+│   ├── tailwind.config.js
+│   └── vite.config.js
+├── docker-compose.yml
+├── .gitignore
+└── README.md
+```
+
+---
+
 ## 🎨 Design Theme Tokens
 The visual design matches the pitch deck specifications:
 - **Primary Dark Green:** `#14402F` (hero background, header, dark sections)
@@ -68,7 +127,7 @@ docker-compose up --build
 ```
 - **Frontend App:** [http://localhost:5173](http://localhost:5173) or [http://localhost](http://localhost)
 - **Backend API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **PostGIS DB:** `localhost:5432` (db: `easy_rescue`, user: `postgres`, password: `postgrespassword`)
+- **PostGIS DB:** `localhost:5432` (db: `easy_rescue`, user: `postgres`)
 
 ---
 
@@ -114,6 +173,51 @@ For easy evaluation during hackathon judging, the top bar includes **1-Click Dem
 ## 📊 Platform Impact Metrics
 - **UNEP CO₂ Equivalent:** Diverting 1 kg of food surplus from landfill prevents approx. 2.5 kg of greenhouse emissions (methane).
 - **Audit Logging:** Every status change is immutably logged with timestamp, user ID, role, and action for corporate ESG and CSR compliance.
+
+---
+
+## 👥 Team Contribution Workflow
+
+> **⚠️ IMPORTANT: All teammates MUST follow this workflow. Never push directly to `main`.**
+
+### For New Teammates — Joining the Repository
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/YOUR_USERNAME/hackathon-project.git
+cd hackathon-project
+
+# 2. Create your personal branch (use your name)
+git checkout -b feature/your-name-feature
+
+# 3. Install dependencies
+cd backend && python -m venv venv && venv\Scripts\activate && pip install -r requirements.txt && cd ..
+cd frontend && npm install && cd ..
+
+# 4. Make your changes, then stage and commit
+git add .
+git commit -m "feat: description of what you built"
+
+# 5. Push YOUR branch (never main!)
+git push origin feature/your-name-feature
+
+# 6. Open a Pull Request on GitHub for review
+```
+
+### Branch Naming Convention
+| Type | Pattern | Example |
+|------|---------|---------|
+| Feature | `feature/name-description` | `feature/vineela-donor-map` |
+| Bug Fix | `fix/name-description` | `fix/gowtham-auth-bug` |
+| UI/Style | `ui/name-description` | `ui/sreenidhi-landing-page` |
+
+### Golden Rules
+1. **Never push to `main` directly** — always use a feature branch + Pull Request.
+2. **Pull latest changes** before starting work: `git pull origin main`
+3. **Never commit** `.env` files, API keys, passwords, tokens, or database files.
+4. **Never copy** your entire project folder over the repo — only add/modify specific files.
+5. **Review diffs** before committing: `git diff` to see what changed.
+6. **Resolve conflicts** carefully — don't blindly accept one side.
 
 ---
 *Created by **Team Decoders (Vindhya, Vineela, Sreenidhi, Gowtham)** for the Hackathon.*

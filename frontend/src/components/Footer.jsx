@@ -9,7 +9,7 @@ export default function Footer() {
           {/* Brand Info */}
           <div className="md:col-span-2 space-y-3">
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-black tracking-tight text-white">EASY</span>
+              <span className="text-2xl font-black tracking-tight text-white">Last Bite</span>
               <span className="text-xs font-semibold px-2 py-0.5 bg-[#3E8E6A] text-white rounded-md">
                 Food-Expiry Rescue
               </span>
@@ -18,7 +18,7 @@ export default function Footer() {
               "Surplus today. A meal tonight."
             </p>
             <p className="text-sm text-[#9CC5AA] max-w-md leading-relaxed">
-              A role-based hyperlocal platform connecting commercial food donors with community kitchens and food banks before shelf-life expires. Built with PostGIS radius queries and verified dual-party confirmation.
+              A role-based hyperlocal platform connecting commercial food donors with community kitchens and food banks before shelf-life expires. Built with PostGIS radius queries, live GPS route tracking, and verified dual-party confirmation receipts.
             </p>
           </div>
 

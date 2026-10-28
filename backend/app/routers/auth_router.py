@@ -22,6 +22,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
         
     user = User(
         email=user_data.email,
+        username=user_data.username or user_data.email.split('@')[0],
         hashed_password=hash_password(user_data.password),
         role=user_data.role,
         org_name=user_data.org_name,
@@ -31,6 +32,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
         latitude=user_data.latitude,
         longitude=user_data.longitude,
         default_radius_km=user_data.default_radius_km or 10.0,
+        receiving_hours=user_data.receiving_hours or "08:00 AM - 08:00 PM",
         capacity_meals=user_data.capacity_meals or 150.0,
         has_cold_storage=user_data.has_cold_storage or False,
     )

@@ -22,6 +22,7 @@ def seed_database():
     users = [
         User(
             email="donor@canteen.org",
+            username="grand_canteen",
             hashed_password=hash_password("donor123"),
             role="donor",
             org_name="Grand Horizon Banquet & Catering",
@@ -35,6 +36,7 @@ def seed_database():
         ),
         User(
             email="campus@canteen.org",
+            username="campus_chef",
             hashed_password=hash_password("donor123"),
             role="donor",
             org_name="Campus Central Canteen & Cafeteria",
@@ -48,6 +50,7 @@ def seed_database():
         ),
         User(
             email="grocer@freshmart.org",
+            username="freshmart_lead",
             hashed_password=hash_password("donor123"),
             role="donor",
             org_name="FreshMart Metro Grocers",
@@ -61,6 +64,7 @@ def seed_database():
         ),
         User(
             email="receiver@foodbank.org",
+            username="hope_foodbank",
             hashed_password=hash_password("receiver123"),
             role="receiver",
             org_name="City Hope Food Bank & Distribution Hub",
@@ -69,12 +73,14 @@ def seed_database():
             address="Greenlands Road, Begumpet, Hyderabad",
             latitude=17.4385,
             longitude=78.4554,
+            receiving_hours="07:00 AM - 10:00 PM",
             capacity_meals=300.0,
             has_cold_storage=True,
             created_at=now - datetime.timedelta(days=12)
         ),
         User(
             email="grace@kitchen.org",
+            username="grace_kitchen",
             hashed_password=hash_password("receiver123"),
             role="receiver",
             org_name="Grace Community Kitchen & Shelter",
@@ -83,12 +89,14 @@ def seed_database():
             address="Panjagutta Main Circle, Hyderabad",
             latitude=17.4265,
             longitude=78.4510,
+            receiving_hours="08:00 AM - 08:00 PM",
             capacity_meals=120.0,
             has_cold_storage=False,
             created_at=now - datetime.timedelta(days=8)
         ),
         User(
             email="seva@shelter.org",
+            username="seva_relief",
             hashed_password=hash_password("receiver123"),
             role="receiver",
             org_name="Seva Night Shelter & Hunger Mission",
@@ -97,12 +105,14 @@ def seed_database():
             address="Khairatabad Junction, Hyderabad",
             latitude=17.4111,
             longitude=78.4619,
+            receiving_hours="06:00 PM - 06:00 AM",
             capacity_meals=60.0,
             has_cold_storage=False,
             created_at=now - datetime.timedelta(days=6)
         ),
         User(
             email="admin@easyrescue.org",
+            username="admin_decoders",
             hashed_password=hash_password("admin123"),
             role="admin",
             org_name="Decoders EASY Admin Team",
